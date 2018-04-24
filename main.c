@@ -2,6 +2,15 @@
 #include "pins.h"
 
 /**
+TO-DO:	Redirecionar a entrada do TimerA0 para o pino P1.2 (Canal 1)
+		Ler o botão por interrupção
+		Verificar a interrupção do modo de captura (TAIV talvez não seja o registro certo)
+		Utilizar a flag CCI/SCII para identificar os flancos de subida ou decida do relógio
+		That's all folks
+*/
+
+
+/**
  * Trigger: P2.5 - Output
  * Echo: P1.2  - Input
  * */
@@ -39,7 +48,7 @@ void config_pins() {
 }
 
 void config_timerA0() {
-    TA0CCTL0 = (CM_3 | CAP | CCIE);
+    TA0CCTL1 = (CM_3 | CAP | CCIE);
     TA0CTL = (TASSEL__SMCLK | MC_UP | TAIE | TACLR);
 }
 
@@ -65,7 +74,7 @@ void main(void) {
 	    delay_mili(100);    //Debounce
 
 	    if(timer != 0 && !has_interrupted){     //valor do timer já foi definido (Modo CAP já gerou as duas interrupções)
-	        if(timer <= 0.0016667) { //< 20 cm
+	        if(timer <= 0.0016667) { //< 20 cm 
 	            writePin(P1_0, HIGH);
 	        }
 	        else if(timer >= 0.0016667 && timer <= 0.0023529) { //  20 cm << x << 40 cm
@@ -87,11 +96,11 @@ __interrupt void TAISR(){
     switch(TAIV){
     case 0x02:
         if(!has_interrupted){
-            timer = TA0CCR0;
+            timer = TA0CCR1;
             has_interrupted = 1;
         }
         else {
-            timer = TA0CCR0 - timer;
+            timer = TA0CCR1 - timer;
             has_interrupted = 0;
         }
 
