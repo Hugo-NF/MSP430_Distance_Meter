@@ -17,24 +17,30 @@ void setup_pins() {
     setPin(P1_0, OUTPUT);            // Here we've already setup DIR, OUT
 
     //Setting up P4.7 (Green LED - User feedback)
-    setPin(P1_0, OUTPUT);            // Here we've already setup DIR, OUT
+    setPin(P4_7, OUTPUT);            // Here we've already setup DIR, OUT
 
     //Setting up P2.0 (Echo Listening)
     setPin(P2_0, INPUT_PULL_DOWN);   // Here we've already setup DIR, REN and OUT
     SET_REG(P2SEL, BIT0);                   // Redirecting pin P2.0 to Timer A1 Channel 1
+
+    //---Preset Leds-----
+    writePin(P1_0, LOW);
+    writePin(P4_7, LOW);
 }
 
 void setup_timerA1() {
     TA1CCTL1 = (CAP | CM_3 | CCIE | CCIS_0);     // Setting up Channel 1
-    TA1CTL = (TASSEL__SMCLK | TACLR | MC__UP); // Setting up Timer A1
+    TA1CTL = (TASSEL__SMCLK | TACLR | MC_2); // Setting up Timer A1
 }
 
 
 void set_result(int diff_time) {    // Set the visual output for user
-    if (diff_time <= 1667) {        // <= 20 cm
+    if (diff_time <= 1160) {        // <= 20 cm
         writePin(P1_0, HIGH);
+        writePin(P4_7, LOW);
     }
-    else if (diff_time > 1667 && diff_time <= 3333) { // 20 cm < x <= 40 cm
+    else if (diff_time > 1160 && diff_time <= 2320) { // 20 cm < x <= 40 cm
+        writePin(P1_0, LOW);
         writePin(P4_7, HIGH);
     }
     else {  // x > 40 cm
@@ -50,7 +56,6 @@ __interrupt void P2ISR() {           // Routine for treating interruptions from 
     case 0x02: break;       //P2.0
     case 0x04:              //P2.1
         P2IE &= ~(BIT1);    // Disables further interruptions coming from P2.1
-
         writePin(P8_2, HIGH); // Writing on module Trigger
         delayMicrosseconds(10);      // Wait for 10 microseconds
         writePin(P8_2, LOW);
@@ -66,12 +71,11 @@ __interrupt void P2ISR() {           // Routine for treating interruptions from 
     }
 }
 
-#pragma vector=TA1IV
-__interrupt void TA1ISR(){          //Routine for treating interruptions from Timer A1
+#pragma vector=TIMER1_A1_VECTOR
+__interrupt void TA1_CCRN_ISR(){          //Routine for treating interruptions from Timer A1
     switch (TA1IV) {                //Reading the Interrupt Vector (TA1IV) clears the Interrupt Flag (TAIFG)
     case 0x00: break;       //Nothing changed
-    case 0x02: break;       //TA1CCR0
-    case 0x04:              //TA1CCR1
+    case TA1IV_TACCR1:      //TA1CCR1
         if(READ_REG(TA1CCTL1, CCI)){ //Raising edge
             time_captured = TA1CCR1; //Save current time
         }
@@ -81,7 +85,6 @@ __interrupt void TA1ISR(){          //Routine for treating interruptions from Ti
             P2IE |= BIT1;                            //Re-Enable P2.1 for interruptions
         }
         break;
-    case 0x06: break;       //TA1CCR2
     default: break;
     }
 }
